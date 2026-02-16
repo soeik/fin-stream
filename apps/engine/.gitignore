@@ -1,0 +1,26 @@
+# Editors
+#*#
+#.*
+*~
+
+# Go build binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of Go coverage
+*.out
+*.coverprofile
+*.prof
+
+# Vendor directory (if you use it)
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
