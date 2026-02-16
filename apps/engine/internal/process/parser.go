@@ -4,21 +4,39 @@ import (
 	"encoding/json"
 	"finstream/engine/internal/models"
 	"log"
+	"sync"
+	"sync/atomic"
 )
+
+var tradePool = sync.Pool{
+	New: func() any {
+		// Мы создаем пустую структуру, которую будем переиспользовать
+		return new(models.Trade)
+	},
+}
+
+var totalMessages uint64
 
 func Worker(input <-chan []byte, output chan<- *models.Trade, agg *Aggregator) {
 	for data := range input {
-		var trade models.Trade
+		t := tradePool.Get().(*models.Trade)
 
-		if err := json.Unmarshal(data, &trade); err != nil {
+		if err := json.Unmarshal(data, t); err != nil {
+			tradePool.Put(t)
 			log.Printf("Parser: error unmarshaling: %v", err)
 			continue
 		}
 
-		avgPrice := agg.AddTrade(trade)
+		agg.AddTrade(*t)
 
-		log.Printf("📊 [%s] 5s Avg Price: %.2f", trade.Symbol, avgPrice)
+		count := atomic.AddUint64(&totalMessages, 1)
 
-		output <- &trade
+		if count%1000 == 0 {
+			log.Printf("🚀 Processed %d messages. Current symbol: %s", count, t.Symbol)
+		}
+
+		*t = models.Trade{}
+		tradePool.Put(t)
+
 	}
 }
