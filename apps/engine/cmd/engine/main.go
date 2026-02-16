@@ -39,31 +39,6 @@ func main() {
 		go process.Worker(rawEvents, parsedTrades, agg)
 	}
 
-	// go func() {
-	// 	for trade := range parsedTrades {
-	// 		log.Printf("💰 Trade: %s | Price: %s | Qty: %s",
-	// 			trade.Symbol, trade.Price, trade.Quantity)
-	// 	}
-	// }()
-
-	// go func() {
-	// 	var count int
-	// 	ticker := time.NewTicker(time.Second) // Срабатывает раз в секунду
-	// 	defer ticker.Stop()
-
-	// 	for {
-	// 		select {
-	// 			case <-ctx.Done():
-	// 				return
-	// 			case <-parsedTrades: // Просто забираем сделку и инкрементируем счетчик
-	// 				count++
-	// 			case <-ticker.C: // Каждую секунду выводим результат
-	// 				log.Printf("📊 Throughput: %d trades/sec", count)
-	// 				count = 0 // Сбрасываем для следующей секунды
-	// 			}
-	// 	}
-	// }()111111111
-
 	<-stop
 	log.Println("⚠️ Shutting down...")
 
