@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package models;
+
+option go_package = "./internal/models";
+
+message TradeStatsProto {
+    string symbol = 1;
+    double price = 2;
+    double avg_price = 3;
+}
+
+
+message MarketUpdateProto {
+    repeated TradeStatsProto stats = 1;
+}

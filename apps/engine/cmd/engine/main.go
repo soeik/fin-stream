@@ -2,47 +2,106 @@ package main
 
 import (
 	"context"
+	"finstream/engine/internal/delivery"
 	"finstream/engine/internal/ingest"
-	"finstream/engine/internal/models"
 	"finstream/engine/internal/process"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"sync"
 	"syscall"
 	"time"
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
+	// Initialize
 	rawEvents := make(chan []byte, 100)
+	agg := process.NewAggregator(5 * time.Second)
+	hub := delivery.NewHub()
 
-	log.Println("🚀 Starting FinStream Engine...")
+	var wg sync.WaitGroup
 
-	symbols := []string{"btcusdt", "ethusdt", "solusdt", "bnbusdt", "xrpusdt", "adausdt"}
+	// Start everything
+	go agg.RunSnapshotter(ctx, 200*time.Millisecond, hub.Broadcast)
+	startWorkers(ctx, &wg, rawEvents, agg)
+	startIngestion(ctx, &wg, rawEvents)
 
+	server := startHTTPServer(hub)
+
+	// Wait and shutdown
+	<-ctx.Done()
+	return shutdown(server, rawEvents, &wg)
+}
+
+func startWorkers(ctx context.Context, wg *sync.WaitGroup, input <-chan []byte, agg *process.Aggregator) {
+	for range runtime.NumCPU() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			process.Worker(ctx, input, agg)
+		}()
+	}
+}
+
+func startIngestion(ctx context.Context, wg *sync.WaitGroup, output chan<- []byte) {
+	symbols := []string{"btcusdt", "ethusdt", "solusdt", "bnbusdt"}
 	for _, s := range symbols {
+		wg.Add(1)
 		url := fmt.Sprintf("wss://stream.binance.com:9443/ws/%s@aggTrade", s)
 		client := ingest.NewStreamClient(url)
-		go client.Connect(ctx, rawEvents) // Все пишут в один канал rawEvents!
+		go func() {
+			defer wg.Done()
+			client.Connect(ctx, output)
+		}()
+	}
+}
+
+func startHTTPServer(hub *delivery.Hub) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", hub.HandleWS)
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
 	}
 
-	parsedTrades := make(chan *models.Trade, 1000)
+	go func() {
+		log.Println("🌍 WebSocket server started on :8080/ws")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
 
-	agg := process.NewAggregator(5 * time.Second)
+	return server
+}
 
-	for range 5 {
-		go process.Worker(rawEvents, parsedTrades, agg)
+func shutdown(server *http.Server, rawEvents chan []byte, wg *sync.WaitGroup) error {
+	log.Println("Shutting down gracefully...")
+
+	// Create a timeout context so we don't wait forever
+	shutdownCtx, forceCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer forceCancel()
+
+	// Stop the HTTP/WS server (stops accepting new connections)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
 	}
 
-	<-stop
-	log.Println("⚠️ Shutting down...")
+	// Wait for all goroutines (Hub, Workers, Ingest) to call wg.Done()
+	wg.Wait()
 
-	cancel()
-
-	log.Println("✅ Done.")
+	log.Println("All systems stopped. Clean exit.")
+	return nil
 }
