@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"finstream/engine/internal/bootstrap"
 	"finstream/engine/internal/delivery"
 	"finstream/engine/internal/ingest"
 	"finstream/engine/internal/process"
@@ -30,6 +31,8 @@ func run() error {
 	rawEvents := make(chan []byte, 300)
 	agg := process.NewAggregator(60 * time.Second)
 	hub := delivery.NewHub()
+
+	go bootstrap.InitStrategy(ctx, agg)
 
 	var wg sync.WaitGroup
 
