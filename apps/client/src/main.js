@@ -7,8 +7,6 @@ const symbols = [
     "ADAUSDT",
     "DOGEUSDT",
     "DOTUSDT",
-    "MATICUSDT",
-    "AVAXUSDT"
 ];
 
 const getOptions = (s) => ({
