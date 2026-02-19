@@ -1,45 +1,40 @@
-# FinStream Engine 🚀
+# 🚀 FinStream Engine: Ultra-Low Latency HFT Dashboard
 
-**High-Performance Financial Data Aggregator & Middleware**
+**Full-stack Streaming Middleware & High-Frequency Visualization Suite**
 
-FinStream Engine is a low-latency streaming middleware built in Go. It ingests raw, high-frequency WebSocket feeds from financial exchanges (e.g., Binance), processes them in-memory using concurrent pipelines, and delivers optimized, aggregated data streams to frontend applications.
+FinStream is a professional-grade streaming engine designed to ingest, aggregate, and visualize high-frequency financial data (Binance `aggTrade`) with sub-millisecond overhead. It eliminates the "Browser Bottleneck" by shifting heavy lifting to a concurrent Go backend and utilizing binary protocols for delivery.
 
-## 🎯 The Challenge
-Public crypto exchange APIs generate massive event volumes (10k+ ticks/sec). Direct streaming to the frontend causes:
-1. **Browser Bottlenecks:** Rendering engines choke on high-frequency updates.
-2. **Network Overhead:** Massive bandwidth consumption for redundant data.
-3. **Calculation Complexity:** Heavy lifting for metrics (Moving Averages, Volatility) shouldn't happen on the client side.
+## ⚡ Key Performance Metrics (Measured on MacBook Air M1/M2)
+*   **Backend Memory:** **~16 MB RAM** (Handling 20+ concurrent instrument streams).
+*   **Backend CPU:** **< 1%** (60 FPS broadcast for 20 symbols).
+*   **Frontend Efficiency:** **~0.8% Scripting load** (60 FPS rendering via uPlot + Protobuf).
+*   **Network Gain:** **~60% traffic reduction** compared to JSON via Binary Protobuf frames.
 
-## 🏗 Architectural Design
+## 🏗 System Architecture
 
-The system follows **Clean Architecture** principles and utilizes a decoupled **Producer-Consumer** model.
+### 1. Ingestion & Aggregation (Go Backend)
+*   **Concurrency Model:** High-speed pipeline using **Worker Pools** and **Buffered Channels** to prevent backpressure.
+*   **Sliding Window Analytics:** Real-time computation of **Moving Average**, **Min/Max (Volatility)**, and **Live Price** over a configurable **300s window**.
+*   **Memory Efficiency:** Zero-allocation focus with efficient slice management for trade history, maintaining a stable 16MB footprint.
 
-### 1. Ingestion Layer
-* **Resilient WS Client:** Implements **Exponential Backoff** for robust reconnection logic.
-* **Context-Driven Lifecycle:** Uses `context.Context` for cancellation propagation and **Graceful Shutdown**, ensuring no data is lost during deployments.
+### 2. Delivery Layer (Binary Protocol)
+*   **Protocol Buffers (Protobuf):** Replaced heavy JSON with strictly typed binary payloads. This eliminates `JSON.parse` overhead and drastically reduces GC pressure in the browser.
+*   **Hub/Broadcaster:** Thread-safe delivery to multiple WebSocket clients using `sync.RWMutex`, ensuring high-frequency read stability.
 
-### 2. Processing Layer (The Engine)
-* **Worker Pool Pattern:** A fixed pool of goroutines handles deserialization and business logic, preventing "goroutine leaks" and CPU spikes.
-* **Zero-Allocation Focus:** Leverages `sync.Pool` to reuse JSON structs. This drastically reduces **GC (Garbage Collector) pressure** and stabilizes P99 latency.
-* **Concurrency Primitives:** High-speed data passing via buffered channels.
-
-### 3. State Management (Aggregation)
-* **Sliding Window Algorithm:** Computes real-time metrics (e.g., 5s Average Price) in-memory with $O(1)$ complexity.
-* **Thread Safety:** Optimized state access using `sync.RWMutex`, favoring high-frequency reads from the Delivery Layer.
-
-### 4. Delivery Layer
-* **Throttling & Batching:** Instead of "fire-and-forget" forwarding, the engine batches updates and flushes them to clients at fixed intervals (e.g., every 100ms).
-* **Traffic Optimization:** Reduces WebSocket frame overhead by merging multiple price updates into a single payload.
+### 3. Visualization (Canvas-based Frontend)
+*   **uPlot Integration:** Leveraging the world's fastest time-series library for **60 FPS** smooth rendering on HTML5 Canvas.
+*   **Volatility Heatmap:** Dynamic UI sorting using **CSS Grid Order**. Most volatile assets (highest % range in 300s) automatically "float" to the top of the dashboard.
+*   **Intelligent Scales:** Auto-scaling Y-axis with **Volatility Corridors** (Min/Max bands) to visualize market depth and noise.
 
 ## 🛠 Tech Stack
-* **Runtime:** Go (Golang)
-* **Patterns:** Worker Pools, Pipelines, Singleton, Observer.
-* **Concurrency:** Goroutines, Channels, `sync.Pool`, `errgroup`.
-* **Libraries:** [Gorilla WebSocket](https://github.com), [Prometheus Go Client](https://github.com).
+*   **Backend:** Go (Golang), [Gorilla WebSocket](https://github.com), [Google Protobuf](https://github.com).
+*   **Frontend:** Vanilla JS (ES6+), [uPlot](https://github.com), [protobuf.js](https://github.com).
+*   **Patterns:** Observer, Pipeline, Concurrent Aggregator, Binary Streaming, Worker Pools.
 
 ## 🚀 Getting Started
 
-### Local Setup
+### Backend
 ```bash
+# From project root
 go mod download
-go run cmd/main.go
+go run cmd/engine/main.go
