@@ -11,52 +11,7 @@
     <body>
         <h2>FinStream: CC Avg Price</h2>
         <div id="chart" class="chart-container"></div>
-
         <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.7/dist/uPlot.iife.js"></script>
-        <script>
-         const chartDiv = document.getElementById("chart");
-
-         // Data для uPlot: [ [time], [val] ]
-         let data = [ [], [] ];
-
-         const opts = {
-             title: "BTC/USDT 5s Moving Average",
-             width: 800,
-             height: 400,
-             series: [
-                 {},
-                 { stroke: "#00ffcc", width: 2 }
-             ],
-             scales: { x: { time: true } },
-             axes: [ {}, { space: 40 } ]
-         };
-
-         let uplot = new uPlot(opts, data, chartDiv);
-
-         const ws = new WebSocket("ws://localhost:8080/ws?format=json");
-
-         ws.onmessage = (event) => {
-             const statsArray = JSON.parse(event.data);
-             const btc = statsArray.find(s => s.s === "BTCUSDT");
-
-             if (btc) {
-                 const now = Math.floor(Date.now() / 1000);
-
-                 data[0].push(now);
-                 data[1].push(btc.a);
-
-                 // Take last 100 points on chart
-                 if (data[0].length > 100) {
-                     data[0].shift();
-                     data[1].shift();
-                 }
-
-                 uplot.setData(data);
-             }
-         };
-
-         ws.onopen = () => console.log("Connected to ws");
-         ws.onerror = (e) => console.error("WS Error", e);
-        </script>
+        <script src="./main.js"></script>
     </body>
 </html>

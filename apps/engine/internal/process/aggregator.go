@@ -57,15 +57,29 @@ func (a *Aggregator) GetSnapshot() []models.TradeStats {
 
 	snapshot := make([]models.TradeStats, 0, len(a.stats))
 	for symbol, stats := range a.stats {
-		avg := 0.0
+		avg := stats.lastPrice
+		minP := stats.lastPrice
+		maxP := stats.lastPrice
+
 		if count := float64(len(stats.trades)); count > 0 {
 			avg = stats.sumPrice / count
+		}
+
+		for _, t := range stats.trades {
+			if t.Price < minP {
+				minP = t.Price
+			}
+			if t.Price > maxP {
+				maxP = t.Price
+			}
 		}
 
 		snapshot = append(snapshot, models.TradeStats{
 			Symbol:   symbol,
 			Price:    stats.lastPrice,
 			AvgPrice: avg,
+			MinPrice: minP,
+			MaxPrice: maxP,
 		})
 	}
 	return snapshot
