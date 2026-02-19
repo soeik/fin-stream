@@ -1,17 +1,10 @@
-const chartDiv = document.getElementById("chart");
+const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 
-// Data для uPlot: [ [time], [avg], [min], [max], [last] ]
-let data = [
-    [],
-    [],
-    [],
-    [],
-    []
-];
+const root = document.getElementById("root");
 
 
-const opts = {
-    title: "BTC/USDT 5s Moving Average",
+const getOptions = (s) => ({
+    title: `${s} Moving Average`,
     width: 800,
     height: 400,
     series: [{}, // 0: X (Time)
@@ -68,24 +61,68 @@ const opts = {
         space: 40
     }],
     width: window.innerWidth - 40,
+});
+
+const getChartDiv = (s) => document.getElementById(`chart-${s}`);
+
+
+const plotFactory = (symbol) => {
+    // Data для uPlot: [ [time], [avg], [min], [max], [last] ]
+    let data = [
+        [],
+        [],
+        [],
+        [],
+        []
+    ];
+
+    let uplot = new uPlot(getOptions(symbol), data, getChartDiv(symbol));
+
+    return {
+        uplot,
+        data
+    };
 };
 
-let uplot = new uPlot(opts, data, chartDiv);
+const getCharts = () => symbols.reduce((acc, cur) => ({
+    ...acc,
+    [cur]: plotFactory(cur)
+}), {});
+
 
 const ws = new WebSocket("ws://localhost:8080/ws?format=json");
 
+
+symbols.forEach((s) => {
+    const chartContainer = document.createElement('div');
+    chartContainer.id = `chart-${s}`;
+    chartContainer.classList.add('chart-container');
+    root.append(chartContainer);
+});
+
+const charts = getCharts();
+
+console.log(charts);
+
 ws.onmessage = (event) => {
     const statsArray = JSON.parse(event.data);
-    const btc = statsArray.find(s => s.s === "BTCUSDT");
 
-    if (btc) {
+    statsArray.forEach((item) => {
+        if (!charts[item.s]) return;
+
+        const {
+            data,
+            uplot
+        } = charts[item.s];
+
+        console.log(item.s, charts[item.s].data);
         const now = Math.floor(Date.now() / 1000);
 
         data[0].push(now);
-        data[1].push(btc.a);
-        data[2].push(btc.m);
-        data[3].push(btc.x);
-        data[4].push(btc.p);
+        data[1].push(item.a);
+        data[2].push(item.m);
+        data[3].push(item.x);
+        data[4].push(item.p);
 
         // Take last X points on chart
         if (data[0].length > 1000) {
@@ -97,7 +134,7 @@ ws.onmessage = (event) => {
         }
 
         uplot.setData(data);
-    }
+    });
 };
 
 ws.onopen = () => console.log("Connected to ws");
