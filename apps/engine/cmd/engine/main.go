@@ -27,14 +27,14 @@ func run() error {
 	defer cancel()
 
 	// Initialize
-	rawEvents := make(chan []byte, 100)
+	rawEvents := make(chan []byte, 300)
 	agg := process.NewAggregator(60 * time.Second)
 	hub := delivery.NewHub()
 
 	var wg sync.WaitGroup
 
 	// Start everything
-	go agg.RunSnapshotter(ctx, 100*time.Millisecond, hub.Broadcast)
+	go agg.RunSnapshotter(ctx, 200*time.Millisecond, hub.Broadcast)
 	startWorkers(ctx, &wg, rawEvents, agg)
 	startIngestion(ctx, &wg, rawEvents)
 
@@ -57,17 +57,12 @@ func startWorkers(ctx context.Context, wg *sync.WaitGroup, input <-chan []byte, 
 
 func startIngestion(ctx context.Context, wg *sync.WaitGroup, output chan<- []byte) {
 	symbols := []string{
-		"btcusdt",
-		"ethusdt",
-		"solusdt",
-		"bnbusdt",
-		"xrpusdt",
-		"adausdt",
-		"dogeusdt",
-		"dotusdt",
-		"maticusdt",
-		"avaxusdt",
+		"btcusdt", "ethusdt", "solusdt", "bnbusdt", "xrpusdt",
+		"adausdt", "dogeusdt", "dotusdt", "maticusdt", "avaxusdt",
+		"trxusdt", "shibusdt", "ltcusdt", "linkusdt", "nearusdt",
+		"atomusdt", "aptusdt", "arbusdt", "opusdt", "ldousdt",
 	}
+
 	for _, s := range symbols {
 		wg.Add(1)
 		url := fmt.Sprintf("wss://stream.binance.com:9443/ws/%s@aggTrade", s)

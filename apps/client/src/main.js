@@ -7,10 +7,18 @@ const symbols = [
     "ADAUSDT",
     "DOGEUSDT",
     "DOTUSDT",
+    "AVAXUSDT",
+    "TRXUSDT",
+    "LTCUSDT",
+    "LINKUSDT",
+    "NEARUSDT",
+    "ATOMUSDT",
+    "ARBUSDT",
+    "OPUSDT",
+    "LDOUSDT",
 ];
 
 const getOptions = (s) => ({
-    title: `${s} Moving Average`,
     width: 800,
     height: 400,
     series: [{}, // 0: X (Time)
@@ -100,6 +108,7 @@ const dashboard = document.getElementById('dashboard');
 symbols.forEach((s) => {
     const wrapper = document.createElement('div');
     wrapper.classList.add('chart-container');
+    wrapper.id = `wrapper-${s}`;
 
     const title = document.createElement('div');
     title.classList.add('chart-title');
@@ -175,6 +184,19 @@ ws.onmessage = (event) => {
 
     stats.forEach((item) => {
         if (!charts[item.symbol]) return;
+
+        const vol = ((item.maxPrice - item.minPrice) / item.avgPrice) * 100;
+
+        const titleEl = document.querySelector(`#wrapper-${item.symbol} .chart-title`);
+        console.log('Vol:', vol, titleEl);
+        if (titleEl) {
+            titleEl.innerText = `${item.symbol} | Vol: ${vol.toFixed(3)}%`;
+        }
+
+        const wrapper = document.getElementById(`wrapper-${item.symbol}`);
+        if (wrapper) {
+            wrapper.style.order = Math.round(vol * -1000);
+        }
 
         const {
             data,
