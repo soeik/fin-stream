@@ -188,7 +188,7 @@ ws.onmessage = (event) => {
         const vol = ((item.maxPrice - item.minPrice) / item.avgPrice) * 100;
 
         const titleEl = document.querySelector(`#wrapper-${item.symbol} .chart-title`);
-        console.log('Vol:', vol, titleEl);
+
         if (titleEl) {
             titleEl.innerText = `${item.symbol} | Vol: ${vol.toFixed(3)}%`;
         }
