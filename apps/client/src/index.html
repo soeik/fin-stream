@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>FinStream Terminal</title>
+        <title>FinStream</title>
         <link href="https://cdn.jsdelivr.net/npm/uplot@1.6.7/dist/uPlot.min.css" rel="stylesheet"></link>
-        <style>
-         body { background: #121212; color: #eee; font-family: sans-serif; }
-         .chart-container { margin: 20px; padding: 10px; background: #1e1e1e; border-radius: 8px; }
-        </style>
+        <link href="./style.css" rel="stylesheet"></link>
     </head>
     <body>
-        <h2>FinStream: CC Avg Price</h2>
-        <div id="root"></div>
+        <h2>FinStream</h2>
+        <div id="dashboard" class="chart-grid"></div>
         <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.7/dist/uPlot.iife.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/protobufjs@8.0.0/dist/protobuf.min.js"></script>
         <script src="./main.js"></script>
     </body>
 </html>

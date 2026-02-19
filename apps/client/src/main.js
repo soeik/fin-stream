@@ -1,7 +1,15 @@
-const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-
-const root = document.getElementById("root");
-
+const symbols = [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "ADAUSDT",
+    "DOGEUSDT",
+    "DOTUSDT",
+    "MATICUSDT",
+    "AVAXUSDT"
+];
 
 const getOptions = (s) => ({
     title: `${s} Moving Average`,
@@ -60,7 +68,7 @@ const getOptions = (s) => ({
     axes: [{}, {
         space: 40
     }],
-    width: window.innerWidth - 40,
+    width: 400,
 });
 
 const getChartDiv = (s) => document.getElementById(`chart-${s}`);
@@ -89,48 +97,101 @@ const getCharts = () => symbols.reduce((acc, cur) => ({
     [cur]: plotFactory(cur)
 }), {});
 
-
-const ws = new WebSocket("ws://localhost:8080/ws?format=json");
-
+const dashboard = document.getElementById('dashboard');
 
 symbols.forEach((s) => {
-    const chartContainer = document.createElement('div');
-    chartContainer.id = `chart-${s}`;
-    chartContainer.classList.add('chart-container');
-    root.append(chartContainer);
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('chart-container');
+
+    const title = document.createElement('div');
+    title.classList.add('chart-title');
+    title.innerText = s;
+    wrapper.appendChild(title);
+
+    const chartDiv = document.createElement('div');
+    chartDiv.id = `chart-${s}`;
+    wrapper.appendChild(chartDiv);
+
+    dashboard.appendChild(wrapper);
 });
+
 
 const charts = getCharts();
 
-console.log(charts);
+const rootProto = protobuf.Root.fromJSON({
+    nested: {
+        models: {
+            nested: {
+                TradeStatsProto: {
+                    fields: {
+                        symbol: {
+                            id: 1,
+                            type: "string"
+                        },
+                        price: {
+                            id: 2,
+                            type: "double"
+                        },
+                        avgPrice: {
+                            id: 3,
+                            type: "double"
+                        },
+                        minPrice: {
+                            id: 4,
+                            type: "double"
+                        },
+                        maxPrice: {
+                            id: 5,
+                            type: "double"
+                        }
+                    }
+                },
+                MarketUpdateProto: {
+                    fields: {
+                        stats: {
+                            id: 1,
+                            rule: "repeated",
+                            type: "TradeStatsProto"
+                        }
+                    }
+                }
+            }
+        }
+    }
+});
+
+const MarketUpdate = rootProto.lookupType("models.MarketUpdateProto");
+
+const ws = new WebSocket("ws://localhost:8080/ws?format=proto");
+ws.binaryType = "arraybuffer";
 
 ws.onmessage = (event) => {
-    const statsArray = JSON.parse(event.data);
+    const uint8view = new Uint8Array(event.data);
+    const message = MarketUpdate.decode(uint8view);
 
-    statsArray.forEach((item) => {
-        if (!charts[item.s]) return;
+    const {
+        stats
+    } = MarketUpdate.toObject(message);
+
+    if (!stats) return;
+
+    stats.forEach((item) => {
+        if (!charts[item.symbol]) return;
 
         const {
             data,
             uplot
-        } = charts[item.s];
-
-        console.log(item.s, charts[item.s].data);
+        } = charts[item.symbol];
         const now = Math.floor(Date.now() / 1000);
 
         data[0].push(now);
-        data[1].push(item.a);
-        data[2].push(item.m);
-        data[3].push(item.x);
-        data[4].push(item.p);
+        data[1].push(item.avgPrice);
+        data[2].push(item.minPrice);
+        data[3].push(item.maxPrice);
+        data[4].push(item.price);
 
-        // Take last X points on chart
-        if (data[0].length > 1000) {
-            data[0].shift();
-            data[1].shift();
-            data[2].shift();
-            data[3].shift();
-            data[4].shift();
+        if (data[0].length > 200) {
+            data.forEach(arr => arr.shift());
         }
 
         uplot.setData(data);

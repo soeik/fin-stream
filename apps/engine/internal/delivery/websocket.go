@@ -25,6 +25,8 @@ func (h *Hub) writeTrade(conn *websocket.Conn, stats []models.TradeStats, format
 				Symbol:   s.Symbol,
 				Price:    s.Price,
 				AvgPrice: s.AvgPrice,
+				MinPrice: s.MinPrice,
+				MaxPrice: s.MaxPrice,
 			}
 		}
 

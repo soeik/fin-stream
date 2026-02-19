@@ -8,6 +8,8 @@ message TradeStatsProto {
     string symbol = 1;
     double price = 2;
     double avg_price = 3;
+    double min_price = 4;
+    double max_price = 5;
 }
 
 

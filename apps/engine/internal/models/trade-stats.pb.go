@@ -26,6 +26,8 @@ type TradeStatsProto struct {
 	Symbol        string                 `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	Price         float64                `protobuf:"fixed64,2,opt,name=price,proto3" json:"price,omitempty"`
 	AvgPrice      float64                `protobuf:"fixed64,3,opt,name=avg_price,json=avgPrice,proto3" json:"avg_price,omitempty"`
+	MinPrice      float64                `protobuf:"fixed64,4,opt,name=min_price,json=minPrice,proto3" json:"min_price,omitempty"`
+	MaxPrice      float64                `protobuf:"fixed64,5,opt,name=max_price,json=maxPrice,proto3" json:"max_price,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,6 +83,20 @@ func (x *TradeStatsProto) GetAvgPrice() float64 {
 	return 0
 }
 
+func (x *TradeStatsProto) GetMinPrice() float64 {
+	if x != nil {
+		return x.MinPrice
+	}
+	return 0
+}
+
+func (x *TradeStatsProto) GetMaxPrice() float64 {
+	if x != nil {
+		return x.MaxPrice
+	}
+	return 0
+}
+
 type MarketUpdateProto struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Stats         []*TradeStatsProto     `protobuf:"bytes,1,rep,name=stats,proto3" json:"stats,omitempty"`
@@ -129,11 +145,13 @@ var File_internal_models_trade_stats_proto protoreflect.FileDescriptor
 
 const file_internal_models_trade_stats_proto_rawDesc = "" +
 	"\n" +
-	"!internal/models/trade-stats.proto\x12\x06models\"\\\n" +
+	"!internal/models/trade-stats.proto\x12\x06models\"\x96\x01\n" +
 	"\x0fTradeStatsProto\x12\x16\n" +
 	"\x06symbol\x18\x01 \x01(\tR\x06symbol\x12\x14\n" +
 	"\x05price\x18\x02 \x01(\x01R\x05price\x12\x1b\n" +
-	"\tavg_price\x18\x03 \x01(\x01R\bavgPrice\"B\n" +
+	"\tavg_price\x18\x03 \x01(\x01R\bavgPrice\x12\x1b\n" +
+	"\tmin_price\x18\x04 \x01(\x01R\bminPrice\x12\x1b\n" +
+	"\tmax_price\x18\x05 \x01(\x01R\bmaxPrice\"B\n" +
 	"\x11MarketUpdateProto\x12-\n" +
 	"\x05stats\x18\x01 \x03(\v2\x17.models.TradeStatsProtoR\x05statsB\x13Z\x11./internal/modelsb\x06proto3"
 
