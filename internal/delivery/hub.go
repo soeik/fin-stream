@@ -2,37 +2,39 @@ package delivery
 
 import (
 	"context"
-	"finstream/engine/internal/models"
+	"finstream/engine/internal/market"
 	"sync"
 )
 
 type Hub struct {
-	clients map[chan []models.TradeStats]bool
+	clients map[chan []market.TickStats]bool
 	mu      sync.RWMutex
-	input   chan []models.TradeStats
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		clients: make(map[chan []models.TradeStats]bool),
-		input:   make(chan []models.TradeStats, 100),
+		clients: make(map[chan []market.TickStats]bool),
 	}
 }
 
-func (h *Hub) Register(ch chan []models.TradeStats) {
+func (h *Hub) Register(ch chan []market.TickStats) {
 	h.mu.Lock()
 	h.clients[ch] = true
 	h.mu.Unlock()
 }
 
-func (h *Hub) Unregister(ch chan []models.TradeStats) {
+func (h *Hub) Unregister(ch chan []market.TickStats) {
 	h.mu.Lock()
-	delete(h.clients, ch)
+	if _, ok := h.clients[ch]; ok {
+		delete(h.clients, ch)
+		close(ch)
+	}
+
 	h.mu.Unlock()
-	close(ch)
+
 }
 
-func (h *Hub) Broadcast(snapshot []models.TradeStats) {
+func (h *Hub) Broadcast(snapshot []market.TickStats) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for ch := range h.clients {

@@ -4,9 +4,8 @@ import (
 	"context"
 	"finstream/engine/internal/bootstrap"
 	"finstream/engine/internal/delivery"
-	"finstream/engine/internal/ingest"
+	"finstream/engine/internal/market"
 	"finstream/engine/internal/process"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -28,51 +27,31 @@ func run() error {
 	defer cancel()
 
 	// Initialize
-	rawEvents := make(chan []byte, 300)
+	tickStream := make(chan market.Tick, 1000)
 	agg := process.NewAggregator(60 * time.Second)
 	hub := delivery.NewHub()
 
-	go bootstrap.InitStrategy(ctx, agg)
-
 	var wg sync.WaitGroup
 
-	// Start everything
+	bootstrap.InitIngesters(ctx, &wg, tickStream)
+	startWorkers(ctx, &wg, tickStream, agg)
+
+	go bootstrap.InitStrategy(ctx, agg)
 	go agg.RunSnapshotter(ctx, 200*time.Millisecond, hub.Broadcast)
-	startWorkers(ctx, &wg, rawEvents, agg)
-	startIngestion(ctx, &wg, rawEvents)
 
 	server := startHTTPServer(hub)
 
 	// Wait and shutdown
 	<-ctx.Done()
-	return shutdown(server, rawEvents, &wg)
+	return shutdown(server, &wg)
 }
 
-func startWorkers(ctx context.Context, wg *sync.WaitGroup, input <-chan []byte, agg *process.Aggregator) {
+func startWorkers(ctx context.Context, wg *sync.WaitGroup, input <-chan market.Tick, agg *process.Aggregator) {
 	for range runtime.NumCPU() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			process.Worker(ctx, input, agg)
-		}()
-	}
-}
-
-func startIngestion(ctx context.Context, wg *sync.WaitGroup, output chan<- []byte) {
-	symbols := []string{
-		"btcusdt", "ethusdt", "solusdt", "bnbusdt", "xrpusdt",
-		"adausdt", "dogeusdt", "dotusdt", "maticusdt", "avaxusdt",
-		"trxusdt", "shibusdt", "ltcusdt", "linkusdt", "nearusdt",
-		"atomusdt", "aptusdt", "arbusdt", "opusdt", "ldousdt",
-	}
-
-	for _, s := range symbols {
-		wg.Add(1)
-		url := fmt.Sprintf("wss://stream.binance.com:9443/ws/%s@aggTrade", s)
-		client := ingest.NewStreamClient(url)
-		go func() {
-			defer wg.Done()
-			client.Connect(ctx, output)
 		}()
 	}
 }
@@ -87,7 +66,7 @@ func startHTTPServer(hub *delivery.Hub) *http.Server {
 	}
 
 	go func() {
-		log.Println("🌍 WebSocket server started on :8080/ws")
+		log.Println("WebSocket server started on :8080/ws")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -96,7 +75,7 @@ func startHTTPServer(hub *delivery.Hub) *http.Server {
 	return server
 }
 
-func shutdown(server *http.Server, rawEvents chan []byte, wg *sync.WaitGroup) error {
+func shutdown(server *http.Server, wg *sync.WaitGroup) error {
 	log.Println("Shutting down gracefully...")
 
 	// Create a timeout context so we don't wait forever

@@ -1,0 +1,16 @@
+syntax = "proto3";
+package market.v1;
+option go_package = "finstream/engine/internal/market/mktproto";
+
+message TickStats {
+    string symbol = 1;
+    string price = 2;
+    string avg_price = 3;
+    string min_price = 4;
+    string max_price = 5;
+    bool is_volume_spike = 6;
+}
+
+message MarketSnapshot {
+    repeated TickStats stats = 1;
+}

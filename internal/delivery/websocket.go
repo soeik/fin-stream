@@ -1,7 +1,8 @@
 package delivery
 
 import (
-	"finstream/engine/internal/models"
+	"finstream/engine/internal/market"
+	"finstream/engine/internal/market/mktproto"
 	"log"
 	"net/http"
 
@@ -13,20 +14,21 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func (h *Hub) writeTrade(conn *websocket.Conn, stats []models.TradeStats, format string) error {
+func (h *Hub) writeTrade(conn *websocket.Conn, stats []market.TickStats, format string) error {
+	log.Printf("Write trade %v", stats)
 	if format == "proto" {
-
-		protoBatch := &models.MarketUpdateProto{
-			Stats: make([]*models.TradeStatsProto, len(stats)),
+		protoBatch := &mktproto.MarketSnapshot{
+			Stats: make([]*mktproto.TickStats, len(stats)),
 		}
 
 		for i, s := range stats {
-			protoBatch.Stats[i] = &models.TradeStatsProto{
-				Symbol:   s.Symbol,
-				Price:    s.Price,
-				AvgPrice: s.AvgPrice,
-				MinPrice: s.MinPrice,
-				MaxPrice: s.MaxPrice,
+			protoBatch.Stats[i] = &mktproto.TickStats{
+				Symbol:        s.Symbol,
+				Price:         s.Price.String(),
+				AvgPrice:      s.AvgPrice.String(),
+				MinPrice:      s.MinPrice.String(),
+				MaxPrice:      s.MaxPrice.String(),
+				IsVolumeSpike: s.IsVolumeSpike,
 			}
 		}
 
@@ -50,11 +52,11 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	clientChan := make(chan []models.TradeStats, 100)
+	clientChan := make(chan []market.TickStats, 100)
 	h.Register(clientChan)
 	defer h.Unregister(clientChan)
 
-	log.Println("🌐 New client connected")
+	log.Println("New client connected")
 
 	for stats := range clientChan {
 		if err := h.writeTrade(conn, stats, format); err != nil {

@@ -2,47 +2,30 @@ package process
 
 import (
 	"context"
-	"encoding/json"
-	"finstream/engine/internal/models"
+	"finstream/engine/internal/market"
 	"log"
-	"sync"
 	"sync/atomic"
 )
 
-var tradePool = sync.Pool{
-	New: func() any {
-		return new(models.Trade)
-	},
-}
-
 var totalMessages uint64
 
-func Worker(ctx context.Context, input <-chan []byte, agg *Aggregator) {
+func Worker(ctx context.Context, input <-chan market.Tick, agg *Aggregator) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case data, ok := <-input:
+		case tick, ok := <-input:
 			if !ok {
 				return
 			}
 
-			t := tradePool.Get().(*models.Trade)
-
-			if err := json.Unmarshal(data, t); err != nil {
-				tradePool.Put(t)
-				continue
-			}
-
-			agg.AddTrade(*t)
+			agg.AddTick(tick)
 
 			count := atomic.AddUint64(&totalMessages, 1)
-			if count%1000 == 0 {
-				log.Printf("🚀 Processed %d messages. Symbol: %s", count, t.Symbol)
+			if count%5000 == 0 {
+				log.Printf("Engine Speed: %d ticks. Current: %s @ %s",
+					count, tick.Symbol, tick.Price.String())
 			}
-
-			*t = models.Trade{}
-			tradePool.Put(t)
 		}
 	}
 }

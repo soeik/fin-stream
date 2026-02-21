@@ -127,38 +127,47 @@ const charts = getCharts();
 
 const rootProto = protobuf.Root.fromJSON({
     nested: {
-        models: {
+        market: {
             nested: {
-                TradeStatsProto: {
-                    fields: {
-                        symbol: {
-                            id: 1,
-                            type: "string"
+                v1: {
+                    nested: {
+                        TickStatsProto: {
+                            fields: {
+                                Symbol: {
+                                    id: 1,
+                                    type: "string"
+                                },
+                                Price: {
+                                    id: 2,
+                                    type: "string"
+                                },
+                                AvgPrice: {
+                                    id: 3,
+                                    type: "string"
+                                },
+                                MinPrice: {
+                                    id: 4,
+                                    type: "string"
+                                },
+                                MaxPrice: {
+                                    id: 5,
+                                    type: "string"
+                                },
+                                IsVolumeSpike: {
+                                    id: 6,
+                                    type: "bool"
+                                }
+
+                            }
                         },
-                        price: {
-                            id: 2,
-                            type: "double"
-                        },
-                        avgPrice: {
-                            id: 3,
-                            type: "double"
-                        },
-                        minPrice: {
-                            id: 4,
-                            type: "double"
-                        },
-                        maxPrice: {
-                            id: 5,
-                            type: "double"
-                        }
-                    }
-                },
-                MarketUpdateProto: {
-                    fields: {
-                        stats: {
-                            id: 1,
-                            rule: "repeated",
-                            type: "TradeStatsProto"
+                        MarketSnapshot: {
+                            fields: {
+                                stats: {
+                                    id: 1,
+                                    rule: "repeated",
+                                    type: "TickStatsProto"
+                                }
+                            }
                         }
                     }
                 }
@@ -167,55 +176,72 @@ const rootProto = protobuf.Root.fromJSON({
     }
 });
 
-const MarketUpdate = rootProto.lookupType("models.MarketUpdateProto");
+
+const MarketSnapshot = rootProto.lookupType("market.v1.MarketSnapshot");
 
 const ws = new WebSocket("ws://localhost:8080/ws?format=proto");
 ws.binaryType = "arraybuffer";
 
 ws.onmessage = (event) => {
-    const uint8view = new Uint8Array(event.data);
-    const message = MarketUpdate.decode(uint8view);
+    try {
+        const uint8view = new Uint8Array(event.data);
 
-    const {
-        stats
-    } = MarketUpdate.toObject(message);
 
-    if (!stats) return;
+        const message = MarketSnapshot.decode(uint8view);
+        const decoded = MarketSnapshot.toObject(message, {
+            longs: String,
+            enums: String,
+            bytes: String,
+            defaults: true
+        });
 
-    stats.forEach((item) => {
-        if (!charts[item.symbol]) return;
+        const stats = decoded.stats;
+        if (!stats || !Array.isArray(stats)) return;
 
-        const vol = ((item.maxPrice - item.minPrice) / item.avgPrice) * 100;
+        stats.forEach((item) => {
 
-        const titleEl = document.querySelector(`#wrapper-${item.symbol} .chart-title`);
+            if (!charts[item.Symbol.toUpperCase()]) return;
 
-        if (titleEl) {
-            titleEl.innerText = `${item.symbol} | Vol: ${vol.toFixed(3)}%`;
-        }
+            const price = parseFloat(item.Price);
+            const avg = parseFloat(item.AvgPrice);
+            const min = parseFloat(item.MinPrice);
+            const max = parseFloat(item.MaxPrice);
 
-        const wrapper = document.getElementById(`wrapper-${item.symbol}`);
-        if (wrapper) {
-            wrapper.style.order = Math.round(vol * -1000);
-        }
 
-        const {
-            data,
-            uplot
-        } = charts[item.symbol];
-        const now = Math.floor(Date.now() / 1000);
+            const vol = ((max - min) / avg) * 100;
 
-        data[0].push(now);
-        data[1].push(item.avgPrice);
-        data[2].push(item.minPrice);
-        data[3].push(item.maxPrice);
-        data[4].push(item.price);
+            const titleEl = document.querySelector(`#wrapper-${item.Symbol} .chart-title`);
+            if (titleEl) {
+                // FIXME
+                const spikeIcon = item.IsVolumeSpike ? "🔥" : "";
+                titleEl.innerText = `${spikeIcon}${item.Symbol} | Vol: ${vol.toFixed(3)}%`;
+            }
 
-        if (data[0].length > 200) {
-            data.forEach(arr => arr.shift());
-        }
+            const wrapper = document.getElementById(`wrapper-${item.Symbol}`);
+            if (wrapper) {
+                wrapper.style.order = Math.round(vol * -1000);
 
-        uplot.setData(data);
-    });
+                wrapper.classList.toggle('volume-spike', item.IsVolumeSpike);
+            }
+
+            const { data, uplot } = charts[item.Symbol.toUpperCase()];
+            const now = Math.floor(Date.now() / 1000);
+
+            data[0].push(now);
+            data[1].push(avg);
+            data[2].push(min);
+            data[3].push(max);
+            data[4].push(price);
+
+            if (data[0].length > 200) {
+                data.forEach(arr => arr.shift());
+            }
+
+            uplot.setData(data);
+        });
+    } catch (e) {
+        console.error("Decode error:", e);
+    }
 };
 
 ws.onopen = () => console.log("Connected to ws");
