@@ -15,9 +15,7 @@ var symbols = []string{
 }
 
 func InitIngesters(ctx context.Context, wg *sync.WaitGroup, output chan<- market.Tick) {
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"} // Публичный набор
 	binance := ingest.NewBinanceSource(symbols)
 
-	// Используем наш универсальный стартер
 	startSource(ctx, wg, binance, output)
 }

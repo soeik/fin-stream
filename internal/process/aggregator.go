@@ -5,7 +5,6 @@ import (
 	"finstream/engine/internal/market"
 	"sync"
 	"time"
-	"log"
 
 	"github.com/shopspring/decimal"
 )
@@ -34,7 +33,6 @@ func NewAggregator(window time.Duration) *Aggregator {
 }
 
 func (a *Aggregator) AddTick(t market.Tick) {
-	log.Printf("AddTick called for %s", t.Symbol)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

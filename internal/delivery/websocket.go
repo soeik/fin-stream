@@ -15,7 +15,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func (h *Hub) writeTrade(conn *websocket.Conn, stats []market.TickStats, format string) error {
-	log.Printf("Write trade %v", stats)
 	if format == "proto" {
 		protoBatch := &mktproto.MarketSnapshot{
 			Stats: make([]*mktproto.TickStats, len(stats)),
@@ -39,7 +38,7 @@ func (h *Hub) writeTrade(conn *websocket.Conn, stats []market.TickStats, format 
 
 		return conn.WriteMessage(websocket.BinaryMessage, binaryData)
 	}
-
+	// FIXME Doesn't seem to work after refactoring
 	return conn.WriteJSON(stats)
 }
 

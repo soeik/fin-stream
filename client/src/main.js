@@ -33,7 +33,7 @@ const getOptions = (s) => ({
         {
             label: "Min",
             stroke: "transparent",
-            width: 2,
+            width: 1,
             points: {
                 show: false
             },
@@ -210,11 +210,15 @@ ws.onmessage = (event) => {
 
             const vol = ((max - min) / avg) * 100;
 
+            // FIXME
             const titleEl = document.querySelector(`#wrapper-${item.Symbol} .chart-title`);
             if (titleEl) {
                 // FIXME
                 const spikeIcon = item.IsVolumeSpike ? "🔥" : "";
                 titleEl.innerText = `${spikeIcon}${item.Symbol} | Vol: ${vol.toFixed(3)}%`;
+            }
+            if(item.IsVolumeSpike) {
+                console.log('Volume spike', item.Symbol)
             }
 
             const wrapper = document.getElementById(`wrapper-${item.Symbol}`);
@@ -232,6 +236,8 @@ ws.onmessage = (event) => {
             data[2].push(min);
             data[3].push(max);
             data[4].push(price);
+
+
 
             if (data[0].length > 200) {
                 data.forEach(arr => arr.shift());
